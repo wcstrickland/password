@@ -106,4 +106,5 @@ quit: 0
     if user_input == "3":
         add_password()
         
-    
+if __name__ == '__main__':
+    pass    

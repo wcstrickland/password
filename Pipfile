@@ -5,6 +5,8 @@ name = "pypi"
 
 [packages]
 psycopg2 = "*"
+cryptography = "*"
+pycrypto = "*"
 
 [dev-packages]
 
