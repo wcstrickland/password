@@ -2,9 +2,6 @@
 
 import getpass
 import psycopg2
-from Crypto.Cipher import AES
-import hashlib
-
 
 
 def db_connect(params):
@@ -30,11 +27,8 @@ def db_connect(params):
 
 def list_all():
     try:
-        print()
-        print("*"*40,"\n")
         rows = []
         cur.execute("select (service, username) from password")
-        cur.fetchone()
         while True:
             row = cur.fetchone()
             if row:
@@ -44,21 +38,16 @@ def list_all():
         for row in rows:
             fields = row[0].strip("()").split(",")
             print(f"SERVICE: {fields[0]} \t USERNAME: {fields[1]}")
-        print()
-        print("*"*40)
     except (Exception, psycopg2.DatabaseError) as error:
         print("error retrieving password table: ", error)
 
 
-def get_password(master_password, service):
+def get_password(service):
     try:
-        print()
         cur.execute(f"select * from password where service='{service}'")
         rows = cur.fetchall()
         for row in rows:
-            clear_pass = decrypt_pass(master_password, bytes(row[2]))
-            clear_pass = str(clear_pass)
-            print(f"service: {row[0]} username: {row[1]}\nPASSWORD: {clear_pass}")
+            print(f"service: {row[0]} username: {row[1]} \n PASSWORD: {row[2]}")
     except (Exception, psycopg2.DatabaseError) as error:
         print("error retrieving password table: ", error)
 
@@ -66,27 +55,18 @@ def get_password(master_password, service):
 def add_password():
     service = input("What is the name of the service? ")
     username = input("What is the username associated with the service? ")
-    password = encrypt_pass()
-    
+    password = getpass.getpass("Please enter the password associated with this service: ")
     try:
         cur.execute("insert into password(service, username, password) values (%s, %s, %s)", (service, username, password ))
         conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         print("error adding new passord: ", error)
     
-def encrypt_pass():
-    encrypted_password = getpass.getpass("Please enter the password associated with this service: ")
-    return encryptor.encrypt(encrypted_password)
-
-def decrypt_pass(master_password, password):
-    decryptor = AES.new(master_password, AES.MODE_CFB, 'This is an IV456') 
-    clear_text = decryptor.decrypt(password)
-    return clear_text
-    
     
 
 
-db_opts = {
+
+opts = {
     "host":"localhost",
     "database":"password",
     "user":"postgres"
@@ -95,39 +75,15 @@ db_opts = {
 valid_choices = ["0", "1", "2", "3"]
 
 if __name__ == '__main__':
+    opts["password"] = getpass.getpass("Enter master password: ")
 
-    db_opts["password"] = getpass.getpass("Enter database password: ")
-    cur, conn = db_connect(db_opts)
-    master_password = getpass.getpass("Enter your master password: ")
-
-    hassher = hashlib.sha256()
-    bytes_passwd = master_password.encode('UTF-8')
-    hassher.update(bytes_passwd)
-    hashed_passwd = hassher.digest()
-    encryptor = AES.new(hashed_passwd, AES.MODE_CFB, 'This is an IV456')
-    
+    cur, conn = db_connect(opts)
 
     try:
-        cur.execute("create table password (service varchar(255), username varchar(255), password bytea )")
-        sanity_check = ciphertext = encryptor.encrypt("sanity_check")
-        cur.execute("insert into password (service, username, password) values (%s, %s, %s)", ("row1", "row1", sanity_check))
+        cur.execute("create table if not exists password (service varchar(255), username varchar(255), password varchar(255))")
         conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         print("error creating password table: ", error)
-    
-    conn.commit()
-
-    cur.execute("select * from password")
-    first_row_check = cur.fetchone()
-    check_sanity = decrypt_pass(hashed_passwd, bytes(first_row_check[2]))
-    print(check_sanity)
-    if check_sanity != b'sanity_check':
-        print("fail")
-    else:
-        print("success")
-    
-
-    
 
     while True:
         print("""
@@ -147,7 +103,7 @@ if __name__ == '__main__':
             list_all()
         if user_input == "2":
             desired_service = input("what service do you want the password for? ") 
-            get_password(hashed_passwd, desired_service)
+            get_password(desired_service)
         if user_input == "3":
             add_password()
             
