@@ -64,8 +64,12 @@ def get_password(master_password, service):
 
 
 def add_password():
-    service = input("What is the name of the service? ")
-    username = input("What is the username associated with the service? ")
+    service = input("\nPress 0 to go back.\nWhat is the name of the service? ")
+    if service == "0":
+        return
+    username = input("\nPress 0 to go back.\nWhat is the username associated with the service? ")
+    if username == "0":
+        add_password()
     password = encrypt_pass()
     
     try:
@@ -83,17 +87,18 @@ def decrypt_pass(password):
     return cryptocode.decrypt(password, master_password)
 
 def sanity_check():
-    cur.execute("select * from password")
-    first_row_check = cur.fetchone()
-    check_sanity = decrypt_pass(first_row_check[2])
-
-    if check_sanity != "1d8c21bb-eba2-45bc-b3c0-f790c3c0c334":
-        print("*"*40)
-        print("\nThat is not the password!\n")
-        print("*"*40)
-        quit()
-    else:
-        print("\nSuccess!!!\n")
+    while True:
+        master_password = getpass.getpass("\nEnter your master password: ")
+        cur.execute("select * from password")
+        first_row_check = cur.fetchone()
+        check_sanity = cryptocode.decrypt(first_row_check[2], master_password)
+        if check_sanity != "1d8c21bb-eba2-45bc-b3c0-f790c3c0c334":
+            print("*"*40)
+            print("\nThat is not the password!\n")
+            print("*"*40)
+        else:
+            print("\nSuccess!!!\n")
+            return master_password
     
     
 
@@ -119,25 +124,29 @@ if __name__ == '__main__':
         first_time = True
         pass
 
+    conn.commit()
+
     if not first_time:
-        master_password = getpass.getpass("\nEnter your master password: ")
+        master_password = sanity_check()
     else:
         master_password = getpass.getpass("\nEnter the master password you will use from now on : ")
-
+        try:
+            cur.execute("create table password (service varchar(255), username varchar(255), password varchar(255))")
+            conn.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            pass
 
     conn.commit()
 
     try:
-        cur.execute("create table password (service varchar(255), username varchar(255), password varchar(255))")
         sanity_check = cryptocode.encrypt("1d8c21bb-eba2-45bc-b3c0-f790c3c0c334", master_password)
         cur.execute("insert into password (service, username, password) values (%s, %s, %s)", ("1d8c21bb-eba2-45bc-b3c0-f790c3c0c334", "1d8c21bb-eba2-45bc-b3c0-f790c3c0c334", sanity_check))
         conn.commit()
     except (Exception, psycopg2.DatabaseError) as error:
         pass
+
     
     conn.commit()
-
-    sanity_check()
 
     
 
@@ -158,7 +167,9 @@ if __name__ == '__main__':
         if user_input == "1":
             list_all()
         if user_input == "2":
-            desired_service = input("what service do you want the password for? ") 
+            desired_service = input("\nEnter 0 to go back.\nwhat service do you want the password for? ") 
+            if desired_service == "0":
+                continue
             get_password(master_password, desired_service)
         if user_input == "3":
             add_password()
