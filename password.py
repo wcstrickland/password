@@ -81,6 +81,19 @@ def encrypt_pass():
 
 def decrypt_pass(password):
     return cryptocode.decrypt(password, master_password)
+
+def sanity_check():
+    cur.execute("select * from password")
+    first_row_check = cur.fetchone()
+    check_sanity = decrypt_pass(first_row_check[2])
+
+    if check_sanity != "1d8c21bb-eba2-45bc-b3c0-f790c3c0c334":
+        print("*"*40)
+        print("\nThat is not the password!\n")
+        print("*"*40)
+        quit()
+    else:
+        print("\nSuccess!!!\n")
     
     
 
@@ -112,14 +125,6 @@ if __name__ == '__main__':
         master_password = getpass.getpass("\nEnter the master password you will use from now on : ")
 
 
-    first_time = False
-
-    try:
-        cur.execute("select * from password")
-    except:
-        first_time = True
-        pass
-
     conn.commit()
 
     try:
@@ -132,18 +137,7 @@ if __name__ == '__main__':
     
     conn.commit()
 
-    cur.execute("select * from password")
-    first_row_check = cur.fetchone()
-    check_sanity = decrypt_pass(first_row_check[2])
-
-    if check_sanity != "1d8c21bb-eba2-45bc-b3c0-f790c3c0c334":
-        print("*"*40)
-        print("\nThat is not the password!\n")
-        print("*"*40)
-        quit()
-    else:
-        print("\nSuccess!!!\n")
-    
+    sanity_check()
 
     
 
