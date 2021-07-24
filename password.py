@@ -1,9 +1,11 @@
 #!/bin/python3
 
+import random
+from uuid import uuid4
 import sqlite3
 import getpass
 import cryptocode
-
+from tkinter import Tk
 
 def list_all():
     try:
@@ -23,6 +25,7 @@ def list_all():
                 spacer = " "*pad
                 print(f"SERVICE: {row[0]} {spacer} USERNAME: {row[1]}")
         print("\n","*"*40)
+        input("press any key to continue: ")
     except (Exception) as error:
         print("error retrieving password table: ", error)
 
@@ -35,10 +38,15 @@ def get_password(master_password, service):
         for row in rows:
             clear_pass = cryptocode.decrypt(row[2], master_password)
             pad = 22 - len(row[0])
-            print(pad)
             spacer = " "*pad
-            print(spacer)
             print(f"service: {row[0]}\nusername: {row[1]}\n\nPASSWORD: {clear_pass}")
+            r = Tk()
+            r.withdraw()
+            r.clipboard_clear()
+            r.clipboard_append(clear_pass)
+            r.update() # now it stays on the clipboard after the window is closed
+            print("\nThis password has been copied to your clipboard \n")
+            input("press any key to continue: ")
     except (Exception) as error:
         print("error retrieving password table: ", error)
 
@@ -56,11 +64,48 @@ def add_password():
         cur.execute("insert into password(service, username, password) values (?, ?, ?)", (service, username, password ))
         conn.commit()
         print("\nPassword inserted successfully!\n")
+        input("press any key to continue: ")
     except (Exception) as error:
         print("error adding new password: ", error)
+
+def remove_password():
+    service = input("\nPress 0 to go back.\nWhat is the name of the service you want to delete? ")
+    if service == "0":
+        return
+    try:
+        cur.execute("delete from password where service=:service", {"service":service})
+    except (Exception) as error:
+        print("error removing password: ", error)
+    conn.commit()
+    print("\nPassword removed\n")
+    input("press any key to continue: ")
     
 def encrypt_pass():
-    clear_password = getpass.getpass("Please enter the password associated with this service: ")
+    symbol_choices = ["#", "!", "$", "_"]
+    while True:
+        generate_password = input("\nDo you want a unique generated password? y or n :")
+        if generate_password == "n":
+            clear_password = getpass.getpass("\nPlease enter the password associated with this service: ")
+            break
+        elif generate_password == "y":
+            clear_password = str(uuid4())
+            clear_password = clear_password[:11]
+            clear_password = clear_password.replace("-", random.choice(symbol_choices))
+            clear_password = [char for char in clear_password]
+            random_number = random.randint(0,7)
+            clear_password[random_number] = clear_password[random_number].upper()
+            random_number = random.randint(0,7)
+            clear_password[random_number] = clear_password[random_number].upper()
+            clear_password = "".join(clear_password)
+            print(f"\nYour password will be {clear_password}")
+            break
+
+    r = Tk()
+    r.withdraw()
+    r.clipboard_clear()
+    r.clipboard_append(clear_password)
+    r.update() # now it stays on the clipboard after the window is closed
+    print("\n\nYour password has been copied to the clipboard\n")
     return cryptocode.encrypt(clear_password, master_password)
 
 def decrypt_pass(password):
@@ -80,18 +125,11 @@ def sanity_check():
             print("\nSuccess!!!\n")
             return master_password
     
-    
 
-
-db_opts = {
-    "host":"localhost",
-    "database":"password",
-    "user":"postgres"
-}
-
-valid_choices = ["0", "1", "2", "3"]
+valid_choices = ["0", "1", "2", "3", "4"]
 
 if __name__ == '__main__':
+
 
     conn = sqlite3.connect('password.db')
     cur = conn.cursor()
@@ -138,11 +176,12 @@ if __name__ == '__main__':
     list all accounts : 1
     retrieve a password: 2
     add a new password: 3
+    remove a password: 4
     quit: 0
     """)
         user_input = input("\t: ")
         if user_input not in valid_choices:
-            print("That is not valid input\n")
+            print("\nThat is not valid input\n")
             continue
         if user_input == "0":
             break
@@ -155,6 +194,8 @@ if __name__ == '__main__':
             get_password(master_password, desired_service)
         if user_input == "3":
             add_password()
+        if user_input == "4":
+            remove_password()
             
     cur.close()
     conn.close()
